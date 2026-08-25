@@ -53,12 +53,13 @@ datasphere config cache init \
   --secrets-file "$SECRETS_FILE" \
   --verbose 2>&1 | head -30 || echo "cache init błąd (kod $?)"
 
-echo "=== CO CLI TERAZ ZNA ==="
-datasphere --help 2>&1 | grep -iE "objects|spaces|tasks" || echo "  NADAL brak objects"
-echo "=== gdzie cache (pełne szukanie) ==="
-find / -name "*.json" -path "*datasphere*" 2>/dev/null | head -10 || echo "  brak"
-find "$HOME" -type d -name ".datasphere*" 2>/dev/null || true
-echo "=== KONIEC ==="
+echo "=== TEST OBJECTS Z HOST ==="
+datasphere objects local-tables list \
+  --space "$SPACE_TARGET" \
+  --host "https://all-for-one-3.eu10.hcs.cloud.sap" \
+  --secrets-file "$SECRETS_FILE" 2>&1 | head -20
+echo "--- kod wyjścia tego testu: powyżej ---"
+echo "=== KONIEC TESTU ==="
 
 echo "=== DIAGNOSTYKA PO INIT ==="
 echo "HOME=$HOME"
