@@ -9,12 +9,6 @@
 
 set -euo pipefail
 
-echo "=== DIAGNOSTYKA ==="
-echo "Node: $(node --version 2>/dev/null || echo BRAK)"
-echo "CLI:  $(datasphere --version 2>/dev/null || echo BRAK)"
-echo "Komendy CLI:"; datasphere --help 2>&1 | grep -iE "objects|spaces|tasks" || echo "  nie znaleziono objects w help"
-echo "=== KONIEC DIAGNOSTYKI ==="
-
 SPACE_TARGET="${SPACE_TARGET:-SADOWDA}"
 SECRETS_FILE="${SECRETS_FILE:-config/secrets.json}"
 DRY_RUN="${DRY_RUN:-0}"
@@ -33,7 +27,11 @@ warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 command -v datasphere >/dev/null || { echo "Brak CLI datasphere" >&2; exit 1; }
 [[ -f "$SECRETS_FILE" ]] || { echo "Brak secrets-file: $SECRETS_FILE" >&2; exit 1; }
 
-dsp() { datasphere "$@" --secrets-file "$SECRETS_FILE"; }
+DSP_HOST="${DSP_HOST:-https://all-for-one-3.eu10.hcs.cloud.sap}"
+
+# Każde wywołanie niesie --host (żeby CLI wiedziało, którego cache/tenanta użyć)
+# oraz --secrets-file (uwierzytelnienie headless, bez interaktywnego login).
+dsp() { datasphere "$@" --host "$DSP_HOST" --secrets-file "$SECRETS_FILE"; }
 
 # Czy obiekt danego typu i nazwy już istnieje w przestrzeni docelowej?
 exists() {
@@ -46,31 +44,6 @@ exists() {
   fi
   rm -f "$lf"; return 1
 }
-
-echo "=== INIT CACHE (w tej samej powłoce) ==="
-datasphere config cache init \
-  --host "https://all-for-one-3.eu10.hcs.cloud.sap" \
-  --secrets-file "$SECRETS_FILE" \
-  --verbose 2>&1 | head -30 || echo "cache init błąd (kod $?)"
-
-echo "=== TEST OBJECTS Z HOST ==="
-datasphere objects local-tables list \
-  --space "$SPACE_TARGET" \
-  --host "https://all-for-one-3.eu10.hcs.cloud.sap" \
-  --secrets-file "$SECRETS_FILE" 2>&1 | head -20
-echo "--- kod wyjścia tego testu: powyżej ---"
-echo "=== KONIEC TESTU ==="
-
-echo "=== DIAGNOSTYKA PO INIT ==="
-echo "HOME=$HOME"
-echo "Komendy CLI po init:"
-datasphere --help 2>&1 | grep -iE "objects|spaces|tasks" || echo "  NADAL brak objects w help"
-echo "Lokalizacja cache:"
-find "$HOME" -name "*.json" -path "*cache*" 2>/dev/null | head -5 || echo "  nie znaleziono plików cache"
-echo "=== KONIEC ==="
-
-
-
 
 log "Wdrażam do przestrzeni: $SPACE_TARGET   (dry-run=$DRY_RUN)"
 created=0; updated=0; failed=0
