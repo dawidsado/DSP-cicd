@@ -9,6 +9,12 @@
 
 set -euo pipefail
 
+echo "=== DIAGNOSTYKA ==="
+echo "Node: $(node --version 2>/dev/null || echo BRAK)"
+echo "CLI:  $(datasphere --version 2>/dev/null || echo BRAK)"
+echo "Komendy CLI:"; datasphere --help 2>&1 | grep -iE "objects|spaces|tasks" || echo "  nie znaleziono objects w help"
+echo "=== KONIEC DIAGNOSTYKI ==="
+
 SPACE_TARGET="${SPACE_TARGET:-SADOWDA}"
 SECRETS_FILE="${SECRETS_FILE:-config/secrets.json}"
 DRY_RUN="${DRY_RUN:-0}"
