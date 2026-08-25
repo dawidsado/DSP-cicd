@@ -1,0 +1,447 @@
+{
+  "dataflows": {
+    "Production_Efficiency_Optimize": {
+      "kind": "sap.dis.dataflow",
+      "@EndUserText.label": "Production Efficiency Optimize",
+      "contents": {
+        "properties": {},
+        "attributes": {
+          "PYTHON_VERSION": "3.11"
+        },
+        "metadata": {
+          "dwc-isPrimaryKeysProcessed": true,
+          "dwc-restartOnFail": false
+        },
+        "parameters": {},
+        "parameterMapping": {},
+        "description": "Production_Efficiency_Optimize",
+        "processes": {
+          "source1": {
+            "component": "com.sap.database.table.consumer",
+            "metadata": {
+              "label": "Efficiency_overview_vol2",
+              "x": -176,
+              "y": 166,
+              "height": 60,
+              "width": 120,
+              "config": {
+                "service": "HANA",
+                "hanaConnection": {
+                  "configurationType": "Configuration Manager",
+                  "connectionID": "$DWC"
+                },
+                "qualifiedName": "Efficiency_overview_vol2",
+                "dwcEntity": "Efficiency_overview_vol2",
+                "remoteObjectType": "TABLE",
+                "fetchSize": 1000,
+                "forceFetchSize": false,
+                "failOnStringTruncation": true
+              },
+              "outports": [
+                {
+                  "name": "outTable",
+                  "type": "table",
+                  "vtype-ID": "$INLINE.source1_outTable"
+                }
+              ]
+            }
+          },
+          "sandboxpythonoperator1": {
+            "component": "com.sap.dataflow.sandboxPythonOperator",
+            "metadata": {
+              "label": "Script 1",
+              "x": 71,
+              "y": 166,
+              "height": 60,
+              "width": 120,
+              "config": {
+                "script": "def transform(data):\n    \"\"\"\n    # Dodaje na dole komentarze żeby było wiadomo co sie dzieje\n    \"\"\"\n    \n    data = data.copy()\n    data[\"oper_przydzielone\"] = 0\n    data[\"zmiany\"] = 0\n    data[\"wydajnosc_mies\"] = 0\n    data[\"oblozenie_proc\"] = 0\n\n    for miesiac, idx in data.groupby(\"data\").groups.items():    # iteracja po wszystkich miesiacach\n        grp = data.loc[idx]    # grp to wiersze danego miesiaca\n        pula = int(grp[\"pula_operatorow\"].iloc[0])   # pula to liczba operatorow do rozdania czyli 20\n\n        dni   = grp[\"dni\"].astype(float).values\n        wyd   = grp[\"wyd_na_oper\"].astype(float).values\n        plan  = grp[\"plan_prod\"].astype(float).values\n        stan  = grp[\"stanowiska_zmiana\"].astype(int).values\n        zmax  = grp[\"zmiany_max\"].astype(int).values\n\n        moc_na_oper = dni * wyd                 # moc 1 operatora / miesiac\n        pojemnosc   = stan * zmax               # max operatorow na linii, czyli maksymalna pojemnosc kazdej linii\n        n = len(grp)\n\n        def oblozenie(oper):                    # funkcja pomocnicza wykorzystywana niżej\n            w = np.where(oper > 0, oper * moc_na_oper, 1e-9) # wydajnosc jako operator * moc na jednego operatora\n            return np.where(plan > 0, plan / w, -1.0)        # zwraca obłożenie każdej linii czyli plan / wydajnosc, mikrowartosc ma chronić przed dzieleniem przez zero dla linii bez ludzi\n\n        # --- faza 1: heurystyka ---\n        oper = np.zeros(n, dtype=int)  \n        for _ in range(pula):                          # petla w której rozdaje operatorów po jednym, w każdym obrocie: policz obłożenia, zablokuj linie bez planu i te już pełne, dodaj operatora tam gdzie najwieksze oblozenie\n            obl = oblozenie(oper)\n            obl = np.where((plan > 0) & (oper < pojemnosc), obl, -np.inf)\n            if np.all(~np.isfinite(obl)):\n                break                            \n            oper[int(np.argmax(obl))] += 1\n\n        # --- faza 2: korekta wsteczna ---\n        def maks_obl(oper):                         # funkcja pomocniczna do operacji niżej, zwraca najgorsze/najwyższe obłożenie w danym rozkładzie\n            o = oblozenie(oper)\n            return np.max(np.where(o >= 0, o, 0))\n\n        poprawiono = True\n        while poprawiono:                           # przeniesienie jednego operatora z kazdej linii na kazdą inna i sprawdzenie czy to najwyższe oblożenie spadło, jesli przeniesienie pomogło to zostaje zatwierzdzone (ostatni if)\n            poprawiono = False\n            biezacy = maks_obl(oper)\n            for i in range(n):          \n                for j in range(n):      \n                    if i == j or oper[i] <= 0:\n                        continue\n                    if plan[j] <= 0 or oper[j] >= pojemnosc[j]:\n                        continue\n                    if plan[i] > 0 and oper[i] - 1 == 0:\n                        continue        \n                    test = oper.copy()\n                    test[i] -= 1; test[j] += 1\n                    if maks_obl(test) < biezacy - 1e-9:\n                        oper = test\n                        poprawiono = True\n                        biezacy = maks_obl(oper)\n\n        # --- wyniki ---\n        zmiany = np.where(oper > 0, np.ceil(oper / stan).astype(int), 0)\n        w = oper * moc_na_oper\n        obl = np.where(w > 0, plan / w, 0.0)\n\n        data.loc[idx, \"oper_przydzielone\"] = oper\n        data.loc[idx, \"zmiany\"] = zmiany\n        data.loc[idx, \"wydajnosc_mies\"] = np.round(w).astype(int)\n        data.loc[idx, \"oblozenie_proc\"] = np.round(obl * 100).astype(int)\n\n    return data\n\n\n"
+              },
+              "inports": [
+                {
+                  "name": "inTable",
+                  "type": "table",
+                  "vtype-ID": "$INLINE.source1_outTable"
+                }
+              ],
+              "outports": [
+                {
+                  "name": "outTable",
+                  "type": "table",
+                  "vtype-ID": "$INLINE.sandboxpythonoperator1_outTable"
+                }
+              ]
+            }
+          },
+          "producer1": {
+            "component": "com.sap.database.table.producer",
+            "metadata": {
+              "label": "Prod_Efficiency_Plan",
+              "x": 296,
+              "y": 171,
+              "height": 60,
+              "width": 120,
+              "config": {
+                "dwcEntity": "Prod_Efficiency_Plan",
+                "hanaConnection": {
+                  "configurationType": "Configuration Manager",
+                  "connectionID": "$DWC"
+                },
+                "mode": "append",
+                "qualifiedName": "Prod_Efficiency_Plan",
+                "remoteObjectType": "TABLE",
+                "service": "HANA",
+                "forceBatchSize": false,
+                "batchSize": 1000,
+                "attributeMappings": [
+                  {
+                    "expression": "\"data\"",
+                    "target": "data"
+                  },
+                  {
+                    "expression": "\"linia\"",
+                    "target": "linia"
+                  },
+                  {
+                    "expression": "\"plan_prod\"",
+                    "target": "plan_prod"
+                  },
+                  {
+                    "expression": "\"dni\"",
+                    "target": "dni"
+                  },
+                  {
+                    "expression": "\"zmiany_max\"",
+                    "target": "zmiany_max"
+                  },
+                  {
+                    "expression": "\"wyd_na_oper\"",
+                    "target": "wyd_na_oper"
+                  },
+                  {
+                    "expression": "\"stanowiska_zmiana\"",
+                    "target": "stanowiska_zmiana"
+                  },
+                  {
+                    "expression": "\"pula_operatorow\"",
+                    "target": "pula_operatorow"
+                  },
+                  {
+                    "expression": "\"oper_przydzielone\"",
+                    "target": "oper_przydzielone"
+                  },
+                  {
+                    "expression": "\"zmiany\"",
+                    "target": "zmiany"
+                  },
+                  {
+                    "expression": "\"wydajnosc_mies\"",
+                    "target": "wydajnosc_mies"
+                  },
+                  {
+                    "expression": "\"oblozenie_proc\"",
+                    "target": "oblozenie_proc"
+                  }
+                ],
+                "hanaAdaptedDataset": {
+                  "schema": {
+                    "genericType": "TABLE",
+                    "tableBasedRepresentation": {
+                      "attributes": [
+                        {
+                          "name": "data",
+                          "templateType": "date"
+                        },
+                        {
+                          "name": "linia",
+                          "templateType": "string",
+                          "length": 5000
+                        },
+                        {
+                          "name": "plan_prod",
+                          "templateType": "int32"
+                        },
+                        {
+                          "name": "dni",
+                          "templateType": "int32"
+                        },
+                        {
+                          "name": "zmiany_max",
+                          "templateType": "int32"
+                        },
+                        {
+                          "name": "wyd_na_oper",
+                          "templateType": "decimal",
+                          "precision": 38,
+                          "scale": 19
+                        },
+                        {
+                          "name": "stanowiska_zmiana",
+                          "templateType": "float64"
+                        },
+                        {
+                          "name": "pula_operatorow",
+                          "templateType": "float64"
+                        },
+                        {
+                          "name": "oper_przydzielone",
+                          "templateType": "float64"
+                        },
+                        {
+                          "name": "zmiany",
+                          "templateType": "float64"
+                        },
+                        {
+                          "name": "wydajnosc_mies",
+                          "templateType": "float64"
+                        },
+                        {
+                          "name": "oblozenie_proc",
+                          "templateType": "float64"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "inports": [
+                {
+                  "name": "inTable",
+                  "type": "table",
+                  "vtype-ID": "$INLINE.sandboxpythonoperator1_outTable"
+                }
+              ]
+            }
+          }
+        },
+        "groups": [],
+        "connections": [
+          {
+            "metadata": {
+              "points": "-51,196 66,196"
+            },
+            "src": {
+              "port": "outTable",
+              "process": "source1"
+            },
+            "tgt": {
+              "port": "inTable",
+              "process": "sandboxpythonoperator1"
+            }
+          },
+          {
+            "metadata": {
+              "points": "196,196 243.5,196 243.5,201 291,201"
+            },
+            "src": {
+              "port": "outTable",
+              "process": "sandboxpythonoperator1"
+            },
+            "tgt": {
+              "port": "inTable",
+              "process": "producer1"
+            }
+          }
+        ],
+        "inports": {},
+        "outports": {},
+        "vTypes": {
+          "scalar": {
+            "string_5000": {
+              "name": "string_5000",
+              "description": "String(5000)",
+              "vflow.type": "scalar",
+              "template": "string",
+              "value.length": 5000
+            },
+            "decimal_38_19": {
+              "name": "decimal_38_19",
+              "description": "Decimal(38,19)",
+              "vflow.type": "scalar",
+              "template": "decimal",
+              "value.precision": 38,
+              "value.scale": 19
+            }
+          },
+          "structure": {},
+          "table": {
+            "source1_outTable": {
+              "name": "source1_outTable",
+              "vflow.type": "table",
+              "rows": {
+                "components": [
+                  {
+                    "data": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.date"
+                    }
+                  },
+                  {
+                    "linia": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "$INLINE.string_5000"
+                    }
+                  },
+                  {
+                    "plan_prod": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int64"
+                    }
+                  },
+                  {
+                    "dni": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int64"
+                    }
+                  },
+                  {
+                    "zmiany_max": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int64"
+                    }
+                  },
+                  {
+                    "wyd_na_oper": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "$INLINE.decimal_38_19"
+                    }
+                  },
+                  {
+                    "stanowiska_zmiana": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int64"
+                    }
+                  },
+                  {
+                    "pula_operatorow": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int64"
+                    }
+                  }
+                ]
+              }
+            },
+            "sandboxpythonoperator1_outTable": {
+              "name": "sandboxpythonoperator1_outTable",
+              "vflow.type": "table",
+              "rows": {
+                "components": [
+                  {
+                    "data": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.date"
+                    }
+                  },
+                  {
+                    "linia": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "$INLINE.string_5000"
+                    }
+                  },
+                  {
+                    "plan_prod": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "dni": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "zmiany_max": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "wyd_na_oper": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "$INLINE.decimal_38_19"
+                    }
+                  },
+                  {
+                    "stanowiska_zmiana": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "pula_operatorow": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "oper_przydzielone": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "zmiany": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "wydajnosc_mies": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  },
+                  {
+                    "oblozenie_proc": {
+                      "vflow.type": "scalar",
+                      "vtype-ID": "com.sap.core.int32"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "sources": {
+        "Efficiency_overview_vol2": {
+          "elements": {
+            "data": {},
+            "linia": {},
+            "plan_prod": {},
+            "dni": {},
+            "zmiany_max": {},
+            "wyd_na_oper": {},
+            "stanowiska_zmiana": {},
+            "pula_operatorow": {}
+          }
+        }
+      },
+      "targets": {
+        "Prod_Efficiency_Plan": {
+          "elements": {
+            "data": {},
+            "linia": {},
+            "plan_prod": {},
+            "dni": {},
+            "zmiany_max": {},
+            "wyd_na_oper": {},
+            "stanowiska_zmiana": {},
+            "pula_operatorow": {},
+            "oper_przydzielone": {},
+            "zmiany": {},
+            "wydajnosc_mies": {},
+            "oblozenie_proc": {}
+          }
+        }
+      },
+      "connections": {},
+      "_meta": {
+        "dependencies": {
+          "folderAssignment": "Folder_KOSDIVYL"
+        }
+      }
+    }
+  }
+}

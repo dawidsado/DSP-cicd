@@ -1,0 +1,60 @@
+{
+  "definitions": {
+    "Efficiency_overview_vol2": {
+      "kind": "entity",
+      "@ObjectModel.modelingPattern": {
+        "#": "DATA_STRUCTURE"
+      },
+      "@ObjectModel.supportedCapabilities": [
+        {
+          "#": "DATA_STRUCTURE"
+        }
+      ],
+      "@DataWarehouse.dataSource.schema": "ZEO#WRG_68TRNRIFC9U30GLC",
+      "@DataWarehouse.dataSource.entity": "sap.dataset.conf_c109fa95-8188-4054-a81c-1949975b5934_view",
+      "@EndUserText.label": "Efficiency_overview_vol2",
+      "elements": {
+        "data": {
+          "type": "cds.Date",
+          "@EndUserText.label": "data"
+        },
+        "linia": {
+          "type": "cds.String",
+          "length": 5000,
+          "@EndUserText.label": "linia"
+        },
+        "plan_prod": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "plan_prod"
+        },
+        "dni": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "dni"
+        },
+        "zmiany_max": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "zmiany_max"
+        },
+        "wyd_na_oper": {
+          "type": "cds.Decimal",
+          "precision": 38,
+          "scale": 19,
+          "@EndUserText.label": "wyd_na_oper"
+        },
+        "stanowiska_zmiana": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "stanowiska_zmiana"
+        },
+        "pula_operatorow": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "pula_operatorow"
+        }
+      },
+      "_meta": {
+        "dependencies": {
+          "folderAssignment": "Folder_KOSDIVYL"
+        }
+      }
+    }
+  }
+}

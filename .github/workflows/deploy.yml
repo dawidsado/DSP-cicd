@@ -1,0 +1,49 @@
+name: Datasphere Transport PoC
+
+# PR do main  -> dry-run (plan): widać co się wdroży, nic nie rusza tenanta
+# push do main -> realne wdrożenie 3 obiektów do przestrzeni docelowej
+on:
+  push:
+    branches: [main]
+    paths: ["objects/**", "scripts/**"]
+  pull_request:
+    paths: ["objects/**", "scripts/**"]
+  workflow_dispatch: {}
+
+jobs:
+  transport:
+    runs-on: ubuntu-latest
+    env:
+      SPACE_TARGET: ${{ vars.SPACE_TARGET }}
+      SECRETS_FILE: config/secrets.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Datasphere CLI + jq
+        run: |
+          npm install -g @sap/datasphere-cli
+          datasphere --version
+          sudo apt-get install -y jq
+
+      - name: Materialize secrets from repo secret
+        run: |
+          mkdir -p config
+          printf '%s' "$DSP_SECRETS" > config/secrets.json
+        env:
+          DSP_SECRETS: ${{ secrets.DSP_SECRETS }}
+
+      - name: Dry-run (plan) on PR
+        if: github.event_name == 'pull_request'
+        run: DRY_RUN=1 ./scripts/deploy.sh
+
+      - name: Deploy on push to main
+        if: github.event_name != 'pull_request'
+        run: ./scripts/deploy.sh
+
+      - name: Cleanup secrets
+        if: always()
+        run: rm -f config/secrets.json
