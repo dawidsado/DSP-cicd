@@ -47,6 +47,22 @@ exists() {
   rm -f "$lf"; return 1
 }
 
+echo "=== INIT CACHE (w tej samej powłoce) ==="
+datasphere config cache init \
+  --host "https://all-for-one-3.eu10.hcs.cloud.sap" \
+  --secrets-file "$SECRETS_FILE" || echo "cache init zwrócił błąd (kod $?)"
+
+echo "=== DIAGNOSTYKA PO INIT ==="
+echo "HOME=$HOME"
+echo "Komendy CLI po init:"
+datasphere --help 2>&1 | grep -iE "objects|spaces|tasks" || echo "  NADAL brak objects w help"
+echo "Lokalizacja cache:"
+find "$HOME" -name "*.json" -path "*cache*" 2>/dev/null | head -5 || echo "  nie znaleziono plików cache"
+echo "=== KONIEC ==="
+
+
+
+
 log "Wdrażam do przestrzeni: $SPACE_TARGET   (dry-run=$DRY_RUN)"
 created=0; updated=0; failed=0
 
