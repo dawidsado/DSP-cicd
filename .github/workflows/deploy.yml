@@ -37,7 +37,7 @@ jobs:
           DSP_SECRETS: ${{ secrets.DSP_SECRETS }}
       
       - name: Initialize CLI cache
-        run: datasphere config cache init --host "https://all-for-one-3.eu10.hcs.cloud.sap"
+        run: datasphere config cache init --host "https://all-for-one-3.eu10.hcs.cloud.sap" --secrets-file config/secrets.json
 
       - name: Dry-run (plan) on PR
         if: github.event_name == 'pull_request'
