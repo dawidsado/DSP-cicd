@@ -72,9 +72,17 @@
         },
         "oblozenie_proc": {
           "@EndUserText.label": "oblozenie_proc",
-          "type": "cds.Double",
-          "key": false
+          "type": "cds.Double"
+        },
+        "test_column": {
+          "@EndUserText.label": "test_column",
+          "type": "cds.String",
+          "length": 100
         }
+      },
+      "@EndUserText.label": "Prod Efficiency Plan",
+      "@ObjectModel.modelingPattern": {
+        "#": "DATA_STRUCTURE"
       },
       "_meta": {
         "dependencies": {
