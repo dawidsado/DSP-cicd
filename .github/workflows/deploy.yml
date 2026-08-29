@@ -45,7 +45,32 @@ jobs:
 
       - name: Deploy on push to main
         if: github.event_name != 'pull_request'
-        run: ./scripts/deploy.sh
+        id: deploy
+        run: ./scripts/deploy.sh | tee deploy_output.txt
+
+      # --- podsumowanie deployu w zakładce Actions (zamiast Teams) ---
+      - name: Deployment summary
+        if: github.event_name != 'pull_request' && always()
+        run: |
+          {
+            echo "## 🚚 Datasphere Transport — podsumowanie"
+            echo ""
+            echo "**Przestrzeń docelowa:** \`${SPACE_TARGET}\`"
+            echo ""
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "**Status:** ✅ wdrożenie zakończone powodzeniem"
+            else
+              echo "**Status:** ❌ wdrożenie zakończone błędem"
+            fi
+            echo ""
+            echo "### Szczegóły"
+            echo '```'
+            # wyczyść kody kolorów ANSI z outputu deploya
+            sed 's/\x1b\[[0-9;]*m//g' deploy_output.txt 2>/dev/null || echo "brak outputu"
+            echo '```'
+            echo ""
+            echo "_Uruchomił: ${{ github.actor }} · commit: ${{ github.sha }}_"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup secrets
         if: always()
