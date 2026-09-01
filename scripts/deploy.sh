@@ -29,8 +29,8 @@ command -v datasphere >/dev/null || { echo "Brak CLI datasphere" >&2; exit 1; }
 
 DSP_HOST="${DSP_HOST:-https://all-for-one-3.eu10.hcs.cloud.sap}"
 
-# Każde wywołanie niesie --host (żeby CLI wiedziało, którego cache/tenanta użyć)
-# oraz --secrets-file (uwierzytelnienie headless, bez interaktywnego login).
+# Every call carries --host (so the CLI knows which tenant/cache to use)
+# and --secrets-file (headless authentication, no interactive login).
 dsp() { datasphere "$@" --host "$DSP_HOST" --secrets-file "$SECRETS_FILE"; }
 
 # Czy obiekt danego typu i nazwy już istnieje w przestrzeni docelowej?
