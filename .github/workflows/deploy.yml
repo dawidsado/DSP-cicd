@@ -1,7 +1,5 @@
-name: Datasphere Transport PoC
+name: Datasphere Transport
 
-# PR do main  -> dry-run (plan): widać co się wdroży, nic nie rusza tenanta
-# push do main -> realne wdrożenie 3 obiektów do przestrzeni docelowej
 on:
   push:
     branches: [main]
@@ -10,20 +8,26 @@ on:
     paths: ["objects/**", "scripts/**"]
   workflow_dispatch: {}
 
+# Required so the pipeline can post the plan as a PR comment.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   transport:
     runs-on: ubuntu-latest
     env:
       SPACE_TARGET: ${{ vars.SPACE_TARGET }}
       SECRETS_FILE: config/secrets.json
+      DSP_HOST: "https://all-for-one-3.eu10.hcs.cloud.sap"
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "lts/*" #najnowsza wersja node
+          node-version: "22"
 
-      - name: Install Datasphere CLI + jq
+      - name: Install Datasphere CLI and jq
         run: |
           npm install -g @sap/datasphere-cli
           datasphere --version
@@ -35,41 +39,64 @@ jobs:
           printf '%s' "$DSP_SECRETS" > config/secrets.json
         env:
           DSP_SECRETS: ${{ secrets.DSP_SECRETS }}
-      
+
       - name: Initialize CLI cache
-        run: datasphere config cache init --host "https://all-for-one-3.eu10.hcs.cloud.sap" --secrets-file config/secrets.json
+        run: datasphere config cache init --host "$DSP_HOST" --secrets-file config/secrets.json
 
-      - name: Dry-run (plan) on PR
+      # PR: compute the plan and post it as a comment.
+      - name: Compute plan (PR only)
         if: github.event_name == 'pull_request'
-        run: DRY_RUN=1 ./scripts/deploy.sh
+        run: DRY_RUN=1 ./scripts/deploy.sh | tee plan_output.txt
 
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = 'No plan available.';
+            try { plan = fs.readFileSync('plan_output.txt', 'utf8'); } catch (e) {}
+            const body = [
+              '### Datasphere transport plan',
+              'This pull request will make the following changes in the target space:',
+              '```',
+              plan.trim(),
+              '```',
+              '_Nothing has been deployed yet - deployment runs after merge to main._'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      # Push/merge to main: real deployment.
       - name: Deploy on push to main
         if: github.event_name != 'pull_request'
-        id: deploy
         run: ./scripts/deploy.sh | tee deploy_output.txt
 
-      # --- podsumowanie deployu w zakładce Actions (zamiast Teams) ---
+      # Deployment summary in the Actions tab.
       - name: Deployment summary
         if: github.event_name != 'pull_request' && always()
         run: |
           {
-            echo "## 🚚 Datasphere Transport — podsumowanie"
+            echo "## Datasphere Transport - summary"
             echo ""
-            echo "**Przestrzeń docelowa:** \`${SPACE_TARGET}\`"
+            echo "**Target space:** \`${SPACE_TARGET}\`"
             echo ""
             if [ "${{ job.status }}" = "success" ]; then
-              echo "**Status:** ✅ wdrożenie zakończone powodzeniem"
+              echo "**Status:** deployment succeeded"
             else
-              echo "**Status:** ❌ wdrożenie zakończone błędem"
+              echo "**Status:** deployment failed"
             fi
             echo ""
-            echo "### Szczegóły"
+            echo "### Details"
             echo '```'
-            # wyczyść kody kolorów ANSI z outputu deploya
-            sed 's/\x1b\[[0-9;]*m//g' deploy_output.txt 2>/dev/null || echo "brak outputu"
+            sed 's/\x1b\[[0-9;]*m//g' deploy_output.txt 2>/dev/null || echo "no output"
             echo '```'
             echo ""
-            echo "_Uruchomił: ${{ github.actor }} · commit: ${{ github.sha }}_"
+            echo "_Triggered by: ${{ github.actor }} - commit: ${{ github.sha }}_"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup secrets
