@@ -58,6 +58,14 @@
         "utilization_pct": {
           "@EndUserText.label": "utilization_pct",
           "type": "cds.Integer"
+        },
+        "demo_column": {
+          "@EndUserText.label": "demo_column",
+          "type": "cds.String",
+          "length": 100,
+          "default": {
+            "val": "'Test'"
+          }
         }
       },
       "@EndUserText.label": "Efficiency Plan",
