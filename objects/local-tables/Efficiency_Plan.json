@@ -1,0 +1,74 @@
+{
+  "definitions": {
+    "Efficiency_Plan": {
+      "kind": "entity",
+      "@ObjectModel.supportedCapabilities": [
+        {
+          "#": "DATA_STRUCTURE"
+        }
+      ],
+      "elements": {
+        "period": {
+          "@EndUserText.label": "period",
+          "type": "cds.Date"
+        },
+        "line": {
+          "@EndUserText.label": "line",
+          "type": "cds.String",
+          "length": 5000
+        },
+        "prod_plan": {
+          "@EndUserText.label": "prod_plan",
+          "type": "cds.Integer64"
+        },
+        "work_days": {
+          "@EndUserText.label": "work_days",
+          "type": "cds.Integer64"
+        },
+        "max_shifts": {
+          "@EndUserText.label": "max_shifts",
+          "type": "cds.Integer64"
+        },
+        "output_per_op": {
+          "@EndUserText.label": "output_per_op",
+          "precision": 38,
+          "scale": 19,
+          "type": "cds.Decimal"
+        },
+        "seats_per_shift": {
+          "@EndUserText.label": "seats_per_shift",
+          "type": "cds.Integer64"
+        },
+        "operator_pool": {
+          "@EndUserText.label": "operator_pool",
+          "type": "cds.Integer64"
+        },
+        "operators_assigned": {
+          "@EndUserText.label": "operators_assigned",
+          "type": "cds.Integer"
+        },
+        "shifts": {
+          "@EndUserText.label": "shifts",
+          "type": "cds.Integer"
+        },
+        "monthly_output": {
+          "@EndUserText.label": "monthly_output",
+          "type": "cds.Integer"
+        },
+        "utilization_pct": {
+          "@EndUserText.label": "utilization_pct",
+          "type": "cds.Integer"
+        }
+      },
+      "@EndUserText.label": "Efficiency Plan",
+      "@ObjectModel.modelingPattern": {
+        "#": "DATA_STRUCTURE"
+      },
+      "_meta": {
+        "dependencies": {
+          "folderAssignment": null
+        }
+      }
+    }
+  }
+}

@@ -24,7 +24,7 @@ for flow in "$FLOWS_DIR"/*.json; do
   # jq writes directly to the .py file - same as the working manual command.
   jq -r "$JQ_FILTER" "$flow" > "$out" 2>/dev/null || true
 
-  # Keep the file only if it actually got content.
+  # Keep the file only if it actually got content. 
   if [[ -s "$out" ]]; then
     echo "Extracted: $out"
     found=$((found+1))

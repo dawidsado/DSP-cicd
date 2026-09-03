@@ -16,9 +16,9 @@ DRY_RUN="${DRY_RUN:-0}"
 
 # Deployment order: [type]:[file]:[technicalName]. Tables BEFORE the flow.
 DEPLOY_ORDER=(
-  "local-tables:objects/local-tables/Efficiency_overview_vol2.json:Efficiency_overview_vol2"
-  "local-tables:objects/local-tables/Prod_Efficiency_Plan.json:Prod_Efficiency_Plan"
-  "data-flows:objects/data-flows/Production_Efficiency_Optimize.json:Production_Efficiency_Optimize"
+  "local-tables:objects/local-tables/staffing_source.json:staffing_source"
+  "local-tables:objects/local-tables/Efficiency_Plan.json:Efficiency_Plan"
+  "data-flows:objects/data-flows/Line_Balancing_DF.json:Line_Balancing_DF"
 )
 
 log()  { printf '>> %s\n' "$*"; }

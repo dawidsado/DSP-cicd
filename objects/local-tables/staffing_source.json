@@ -1,0 +1,60 @@
+{
+  "definitions": {
+    "staffing_source": {
+      "kind": "entity",
+      "@ObjectModel.modelingPattern": {
+        "#": "DATA_STRUCTURE"
+      },
+      "@ObjectModel.supportedCapabilities": [
+        {
+          "#": "DATA_STRUCTURE"
+        }
+      ],
+      "@DataWarehouse.dataSource.schema": "DEV#WRG_2CSCO96P11HVCP4J",
+      "@DataWarehouse.dataSource.entity": "sap.dataset.conf_91618c3e-b0db-47a1-af5d-c3da3b863c8b_view",
+      "@EndUserText.label": "staffing_source",
+      "elements": {
+        "period": {
+          "type": "cds.Date",
+          "@EndUserText.label": "period"
+        },
+        "line": {
+          "type": "cds.String",
+          "length": 5000,
+          "@EndUserText.label": "line"
+        },
+        "prod_plan": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "prod_plan"
+        },
+        "work_days": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "work_days"
+        },
+        "max_shifts": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "max_shifts"
+        },
+        "output_per_op": {
+          "type": "cds.Decimal",
+          "precision": 38,
+          "scale": 19,
+          "@EndUserText.label": "output_per_op"
+        },
+        "seats_per_shift": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "seats_per_shift"
+        },
+        "operator_pool": {
+          "type": "cds.Integer64",
+          "@EndUserText.label": "operator_pool"
+        }
+      },
+      "_meta": {
+        "dependencies": {
+          "folderAssignment": null
+        }
+      }
+    }
+  }
+}
