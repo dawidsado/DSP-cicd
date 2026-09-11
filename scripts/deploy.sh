@@ -11,7 +11,7 @@ set -euo pipefail
 
 SPACE_TARGET="${SPACE_TARGET:-PROD}"
 SECRETS_FILE="${SECRETS_FILE:-config/secrets.json}"
-DSP_HOST="${DSP_HOST:-https://all-for-one-3.eu10.hcs.cloud.sap}"
+DSP_HOST="${DSP_HOST:-https://your-tenant.region.hcs.cloud.sap}"
 DRY_RUN="${DRY_RUN:-0}"
 
 # Deployment order: [type]:[file]:[technicalName]. Tables BEFORE the flow.

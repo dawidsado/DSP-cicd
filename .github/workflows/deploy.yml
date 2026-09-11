@@ -19,7 +19,7 @@ jobs:
     env:
       SPACE_TARGET: ${{ vars.SPACE_TARGET }}
       SECRETS_FILE: config/secrets.json
-      DSP_HOST: "https://all-for-one-3.eu10.hcs.cloud.sap"
+      DSP_HOST: "https://your-tenant.region.hcs.cloud.sap"
     steps:
       - uses: actions/checkout@v4
 
