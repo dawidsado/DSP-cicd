@@ -60,5 +60,97 @@ the list of tenant-specific commands (like `objects`).
 
 ## Notes
 
-- `config/secrets.json` is never committed (see `.gitignore`) - it holds tenant tokens.
 - The Python transformation inside the data flow travels with the flow definition.
+
+## Run it yourself
+
+Everything runs against **your own** SAP Datasphere tenant with **your own**
+credentials. Nothing here contains real secrets — you generate your own.
+
+### 1. Create a Technical User OAuth client
+
+In SAP Datasphere: **System → Administration → App Integration → Add a New OAuth Client**.
+
+- **Purpose:** `Technical User` (uses the `client_credentials` grant, so it works
+  headless — no browser login needed in CI).
+- **User ID:** any unique name, e.g. `github_technical_user`.
+- **Roles:** assign a scoped role (e.g. **DW Modeler**) that grants access to your
+  source and target spaces, with privileges for Data Builder and Space Files.
+
+After saving, copy the **Client ID** and **Client Secret** (the secret is shown once).
+
+> Note: a scoped role only applies to the spaces attached to it. Make sure your role
+> covers **both** the source (DEV) and target (PROD) spaces — otherwise the CLI
+> returns `403 Forbidden`.
+
+### 2. Log in and generate the secrets file
+
+Install the CLI and `jq`:
+
+```bash
+npm install -g @sap/datasphere-cli
+```
+
+Log in with the technical user (single quotes matter — the client id often contains `!`):
+
+```bash
+datasphere login \
+  --authorization-flow client_credentials \
+  --client-id 'YOUR_CLIENT_ID' \
+  --client-secret 'YOUR_CLIENT_SECRET' \
+  --token-url 'YOUR_TOKEN_URL' \
+  --host 'https://your-tenant.region.hcs.cloud.sap'
+```
+
+Export the session to a secrets file:
+
+```bash
+mkdir -p config
+datasphere config secrets show > config/secrets.json
+```
+
+The output is an array — reduce it to a single object and make sure it contains a
+`host` field. See `config/secrets.example.json` for the expected shape.
+
+> `config/secrets.json` is git-ignored and must **never** be committed — it holds
+> your tenant tokens.
+
+### 3. Test access
+
+```bash
+datasphere objects local-tables list \
+  --space YOUR_SPACE \
+  --host 'https://your-tenant.region.hcs.cloud.sap' \
+  --secrets-file config/secrets.json
+```
+
+An empty list `[]` means access works. A `403` means the scoped role doesn't cover
+that space (see step 1).
+
+### 4. Configure GitHub
+
+In your repo: **Settings → Secrets and variables → Actions**.
+
+- **Secret** `DSP_SECRETS` — paste the full contents of your working
+  `config/secrets.json`.
+- **Variable** `SPACE_TARGET` — your target space id (e.g. `PROD`).
+
+Update `DSP_HOST` in `scripts/deploy.sh` and `.github/workflows/deploy.yml` to point
+to your own tenant.
+
+### 5. Collect and deploy
+
+Collect objects from your source space into `objects/`, commit, and push. On push to
+`main`, the pipeline deploys them to the target space. On a pull request, it posts a
+plan (dry-run) as a comment first.
+
+### Notes on the CLI in CI
+
+Two things every CLI call needs in a headless environment:
+
+- `--host` — so the CLI knows which tenant (and command cache) to use. Without it you
+  may get `unknown command 'objects'`.
+- `--secrets-file` — the credentials for headless authentication.
+
+The workflow also runs `datasphere config cache init --host ...` once per run to
+download the tenant-specific command list. Node.js 20–24 is required.
